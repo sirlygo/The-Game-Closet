@@ -2,7 +2,7 @@
 // main.js keeps the game state; this class mirrors it and reports taps on squares.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 
 const Rules = window.CheckersRules;
 const SIZE = Rules.SIZE;
@@ -116,9 +116,8 @@ export class CheckersBoard3D {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.4;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
 
     scene.add(new THREE.HemisphereLight(0xfff4e0, 0x2a2018, 0.7));

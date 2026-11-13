@@ -21,8 +21,12 @@ function readJson(key, fallback) {
   }
 }
 
+// Recorded effects from Kenney's sound packs (CC0), in /assets/sfx.
+const SAMPLES = ['ui', 'confirm', 'coin', 'impact', 'hit', 'land'];
+
 class Sound {
   constructor() {
+    this.samples = {};
     this.ctx = null;
     this.noiseBuffer = null;
     this.buses = {};
@@ -81,7 +85,40 @@ class Sound {
     this.noiseBuffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = this.noiseBuffer.getChannelData(0);
     for (let i = 0; i < length; i += 1) data[i] = Math.random() * 2 - 1;
+    this.loadSamples(ctx);
     return ctx;
+  }
+
+  loadSamples(ctx) {
+    SAMPLES.forEach((name) => {
+      fetch(`/assets/sfx/${name}.mp3`)
+        .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(res.statusText))))
+        .then((data) => ctx.decodeAudioData(data))
+        .then((buffer) => {
+          this.samples[name] = buffer;
+        })
+        .catch(() => {
+          /* the synthesized version of the sound plays instead */
+        });
+    });
+  }
+
+  // Plays a recorded effect. Returns false if it has not loaded, so the caller
+  // can fall back to the synthesized sound.
+  sample(name, { gain = 1, rate = 1, delay = 0 } = {}) {
+    const ctx = this.ready();
+    if (!ctx) return true;
+    const buffer = this.samples[name];
+    if (!buffer) return false;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    // A little pitch variation keeps repeated moves from sounding identical.
+    source.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    source.connect(g).connect(this.buses.effects);
+    source.start(ctx.currentTime + delay);
+    return true;
   }
 
   // Perceived loudness: sliders feel linear when squared.
@@ -307,10 +344,12 @@ class Sound {
   // ---- effects -----------------------------------------------------------
 
   click() {
+    if (this.sample('ui', { gain: 0.9 })) return;
     this.tone({ type: 'triangle', freq: 880, freqEnd: 660, duration: 0.06, gain: 0.12 });
   }
 
   place() {
+    if (this.sample('land', { gain: 0.8 })) return;
     this.tone({ type: 'sine', freq: 180, freqEnd: 90, duration: 0.18, gain: 0.35 });
     this.noise({ duration: 0.25, filter: 'lowpass', freq: 600, gain: 0.2 });
   }
@@ -359,6 +398,7 @@ class Sound {
   }
 
   joined() {
+    if (this.sample('confirm', { gain: 0.8 })) return;
     [523, 659, 784].forEach((freq, i) => this.tone({ type: 'triangle', freq, duration: 0.2, gain: 0.14, delay: i * 0.09 }));
   }
 
@@ -376,11 +416,16 @@ class Sound {
 
   // Board-game pieces
   clack() {
+    if (this.sample('impact', { gain: 0.7 })) return;
     this.noise({ duration: 0.09, filter: 'bandpass', freq: 2200, q: 2.5, gain: 0.5, attack: 0.002 });
     this.tone({ type: 'triangle', freq: 320, freqEnd: 180, duration: 0.08, gain: 0.25, attack: 0.002 });
   }
 
   capture() {
+    if (this.sample('hit', { gain: 0.9 })) {
+      this.sample('impact', { gain: 0.8, rate: 0.8, delay: 0.05 });
+      return;
+    }
     this.clack();
     this.noise({ duration: 0.25, filter: 'lowpass', freq: 900, freqEnd: 200, gain: 0.5, delay: 0.05 });
     this.tone({ type: 'sine', freq: 140, freqEnd: 60, duration: 0.25, gain: 0.4, delay: 0.04 });
@@ -393,6 +438,7 @@ class Sound {
   }
 
   crown() {
+    if (this.sample('coin', { gain: 0.7 })) return;
     [784, 988, 1175, 1568].forEach((freq, i) =>
       this.tone({ type: 'triangle', freq, duration: 0.35, gain: 0.14, delay: i * 0.07 })
     );
