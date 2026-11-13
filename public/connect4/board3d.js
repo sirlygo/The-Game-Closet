@@ -2,7 +2,7 @@
 // main.js keeps the game state; this class mirrors it and reports taps on columns.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 
 const Rules = window.FourRules;
 const DISC_R = 0.42;
@@ -114,9 +114,8 @@ export class FourBoard3D {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.55;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
 
     scene.add(new THREE.HemisphereLight(0xfff4e0, 0x2a2018, 0.8));

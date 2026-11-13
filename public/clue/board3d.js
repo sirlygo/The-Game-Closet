@@ -2,7 +2,7 @@
 // main.js drives it with board coordinates (cells, top-left origin) and gets clicks back via onPick.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 
 const Board = window.ClueBoard;
 const { SIZE, SUSPECTS, WEAPONS, ROOMS, CENTER } = Board;
@@ -268,9 +268,8 @@ export class ClueBoard3D {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.45;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.5, 200);
 
     scene.add(new THREE.HemisphereLight(0xfff0e0, 0x201418, 0.75));

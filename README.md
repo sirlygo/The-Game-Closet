@@ -208,3 +208,7 @@ On Render's free plan the server sleeps after 15 minutes without visitors. The f
 ### Adding a game
 
 Create `server/games/<id>.js` exporting `id`, `title`, `minPlayers`, `maxPlayers`, `defaultOptions`, `canChangeOptions`, `applyOptions`, `start`, `view`, `onLeave` and an `actions` map. Register it in `server.js`, then add a page under `public/<id>/` that uses `shared/room-client.js`. Rooms, spectators, chat, reconnects and rematches work automatically.
+
+## Assets
+
+The games use free public-domain (CC0) assets, stored in `public/assets`: recorded sound effects from Kenney, photographed lighting from Poly Haven for the 3D boards, and Kenney low-poly trees, rocks and buildings on The Game of Life board. See `public/assets/CREDITS.md`.

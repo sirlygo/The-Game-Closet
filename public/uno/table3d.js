@@ -2,7 +2,7 @@
 // direction ring and every opponent's fanned hand. Your own hand lives in the page.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 import { cardCanvas, COLOR_HEX } from './card-art.js';
 
 const CW = 1;
@@ -97,9 +97,8 @@ export class ClashTable3D {
     this.renderer = renderer;
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.35;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
 
     scene.add(new THREE.HemisphereLight(0xfff4e0, 0x1a2a20, 0.9));

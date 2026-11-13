@@ -2,7 +2,7 @@
 // little houses and hotels, owner markers, flying coins and a pair of dice.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 import { drawBoard, SIDE, spaceRect, tokenSpot } from './board-art.js';
 import { coinCanvas } from './token-art.js';
 
@@ -172,9 +172,8 @@ export class TycoonBoard3D {
     this.renderer = renderer;
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.5;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 150);
 
     scene.add(new THREE.HemisphereLight(0xfff4e0, 0x2a2018, 0.8));

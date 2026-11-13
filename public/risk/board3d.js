@@ -2,7 +2,7 @@
 // infantry, cavalry and cannons. main.js feeds it territory state and gets picks back.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -221,9 +221,8 @@ export class RiskBoard3D {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.35;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.5, 200);
 
     scene.add(new THREE.HemisphereLight(0xeaf2ff, 0x1a1410, 0.8));

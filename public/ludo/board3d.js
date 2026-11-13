@@ -2,7 +2,7 @@
 // tumbling die. main.js keeps the game state; this class mirrors it.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 
 const L = window.LudoRules;
 export const HEX = { red: '#e0413b', green: '#2fb35a', yellow: '#f5b920', blue: '#2f7fe0' };
@@ -182,9 +182,8 @@ export class LudoBoard3D {
     this.renderer = renderer;
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.45;
+    applyEnvironment(renderer, scene, 'lobby');
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 120);
 
     scene.add(new THREE.HemisphereLight(0xfff4e0, 0x2a2018, 0.8));

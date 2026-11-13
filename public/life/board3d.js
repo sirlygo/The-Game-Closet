@@ -2,7 +2,8 @@
 // people, and scenery. main.js drives it with seat positions and move paths.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
+import { loadModels } from '../shared/models.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const B = window.LifeBoard;
@@ -242,9 +243,8 @@ export class LifeBoard3D {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.4;
+    applyEnvironment(renderer, scene, 'park');
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.5, 200);
     scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x3a5a2a, 0.9));
     const sun = new THREE.DirectionalLight(0xfff1d6, 2.3);
@@ -404,8 +404,10 @@ export class LifeBoard3D {
     const q = new THREE.Quaternion();
     const v = new THREE.Vector3();
     const c = new THREE.Color();
+    const sizes = [];
     trees.forEach(([x, z], i) => {
       const s = 0.8 + rand() * 0.6;
+      sizes.push(s);
       const y = this.groundY(x, z);
       m.compose(v.set(x, y + 0.1 * s, z), q, new THREE.Vector3(s, s, s));
       trunk.setMatrixAt(i, m);
@@ -417,6 +419,8 @@ export class LifeBoard3D {
       mesh.castShadow = true;
       this.scene.add(mesh);
     });
+    this.landmarks = [];
+    this.upgradeScenery(trees.map(([x, z], i) => ({ x, z, s: sizes[i] })), [trunk, crown], clear);
 
     // Landmarks next to the big stops.
     const landmark = (kind, color, roof, scale = 1) => {
@@ -451,6 +455,7 @@ export class LifeBoard3D {
       g.position.set(spot[0], this.groundY(spot[0], spot[1]), spot[1]);
       g.rotation.y = rand() * Math.PI;
       this.scene.add(g);
+      this.landmarks.push({ kind, group: g });
     };
     // Clouds and hot-air balloons drifting over the board.
     this.floaters = [];
@@ -496,6 +501,87 @@ export class LifeBoard3D {
     landmark('house', 0xf2d7a7, 0x3b6ea5);
     landmark('nightschool', 0xa0b8d9, 0x2a3a6a, 0.9);
     landmark('retire', 0xfff3d6, 0xd4aa4f, 1.5);
+  }
+
+  // Swaps the simple placeholder scenery for real low-poly models (Kenney, CC0)
+  // once they have loaded. If they fail to load, the placeholders stay.
+  upgradeScenery(trees, placeholders, clear) {
+    const treeKinds = ['tree_oak', 'tree_pine', 'tree_fat', 'tree_pine_tall', 'tree_dark', 'tree_autumn'];
+    const propKinds = ['bush', 'bush_large', 'rock_small', 'rock_large', 'flower_red', 'stump'];
+    const buildings = { graduation: 'building_e', marry: 'building_a', house: 'building_c', nightschool: 'building_g', retire: 'building_h' };
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    // One InstancedMesh per part of the model, for every spot it stands on.
+    const scatter = (model, spots, height) => {
+      if (!spots.length) return;
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const norm = height / Math.max(box.max.y - box.min.y, 0.001);
+      model.traverse((part) => {
+        if (!part.isMesh) return;
+        // The kit's plain-colour materials default to shiny metal and its leaves
+        // are teal; make them matte and match the board's greens.
+        const mat = part.material.clone();
+        mat.metalness = 0;
+        mat.roughness = 0.85;
+        const hsl = mat.color.getHSL({});
+        if (hsl.h > 0.38 && hsl.h < 0.55) mat.color.setHSL(0.34 + (hsl.l - 0.45) * 0.2, 0.62, hsl.l * 0.36);
+        const inst = new THREE.InstancedMesh(part.geometry, mat, spots.length);
+        spots.forEach((t, i) => {
+          const k = norm * t.s;
+          m.compose(new THREE.Vector3(t.x, this.groundY(t.x, t.z) - box.min.y * k, t.z), q.setFromAxisAngle(up, t.rot), new THREE.Vector3(k, k, k));
+          inst.setMatrixAt(i, m.multiply(part.matrixWorld));
+        });
+        inst.castShadow = true;
+        inst.receiveShadow = true;
+        this.scene.add(inst);
+      });
+    };
+    let seed = 99;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    loadModels([...treeKinds, ...propKinds, ...Object.values(buildings)])
+      .then((models) => {
+        const byName = new Map([...treeKinds, ...propKinds, ...Object.values(buildings)].map((name, i) => [name, models[i]]));
+        placeholders.forEach((mesh) => this.scene.remove(mesh));
+        trees.forEach((t) => {
+          t.rot = rand() * Math.PI * 2;
+          // Mostly oaks and pines, with the odd autumn tree.
+          t.kind = treeKinds[Math.min(treeKinds.length - 1, Math.floor(Math.pow(rand(), 1.4) * treeKinds.length))];
+        });
+        treeKinds.forEach((kind) => scatter(byName.get(kind), trees.filter((t) => t.kind === kind), 0.85));
+        // Bushes, rocks and flowers between the trees.
+        const props = [];
+        for (let i = 0; i < 600 && props.length < 70; i += 1) {
+          const x = (rand() - 0.5) * 21;
+          const z = (rand() - 0.5) * 15;
+          const free = trees.every((t) => Math.hypot(t.x - x, t.z - z) > 0.3) && props.every((t) => Math.hypot(t.x - x, t.z - z) > 0.3);
+          if (clear(x, z, 0.7) && free) props.push({ x, z, s: 0.7 + rand() * 0.6, rot: rand() * Math.PI * 2, kind: propKinds[Math.floor(rand() * propKinds.length)] });
+        }
+        const propHeight = { bush: 0.2, bush_large: 0.28, rock_small: 0.14, rock_large: 0.24, flower_red: 0.16, stump: 0.12 };
+        propKinds.forEach((kind) => scatter(byName.get(kind), props.filter((t) => t.kind === kind), propHeight[kind]));
+        // Real buildings for the landmarks.
+        this.landmarks.forEach(({ kind, group }) => {
+          const model = byName.get(buildings[kind]).clone();
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const k = 0.95 / Math.max(size.x, size.y, size.z);
+          model.scale.multiplyScalar(k);
+          model.position.set(-(box.min.x + size.x / 2) * k, -box.min.y * k, -(box.min.z + size.z / 2) * k);
+          model.traverse((part) => {
+            if (part.isMesh) {
+              part.castShadow = true;
+              part.receiveShadow = true;
+            }
+          });
+          group.clear();
+          group.add(model);
+        });
+      })
+      .catch((error) => console.warn('Scenery models unavailable, keeping the simple scenery', error));
   }
 
   groundY(x, z) {

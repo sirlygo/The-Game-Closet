@@ -2,7 +2,7 @@
 // Shares its interface with Board2D (board2d.js) so the game logic can use either.
 
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { applyEnvironment } from '../shared/environment.js';
 import { squareCanvases, makeSetMaterials, makeWizardPiece, shatter } from './piece-sets.js';
 
 const FILES = 'abcdefgh';
@@ -207,9 +207,8 @@ export class Board3D {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.35;
+    applyEnvironment(renderer, scene, 'lobby');
 
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
     this.camAngle = 0;
